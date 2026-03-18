@@ -11,6 +11,12 @@ export class ControllerBase implements IControllerBase {
         this.router = Router();
     }
 
+    protected getQueryString = (param: string | string[] | undefined): string => {
+        if (!param) return "";
+
+        return Array.isArray(param) ? param[0]! : param;
+    }
+
     setup(): void {
         throw new Error("Method not implemented.");
     }

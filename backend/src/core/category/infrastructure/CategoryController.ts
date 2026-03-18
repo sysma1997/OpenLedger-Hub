@@ -62,7 +62,7 @@ export class CategoryController extends ControllerBase {
         this.router.delete("/delete/:id", UserAuthenticate, async (req, res) => {
             try {
                 const idUser: string = req.user!.id;
-                const id: string = req.params.id!;
+                const id: string = this.getQueryString(req.params.id!);
 
                 await this.repository.delete(idUser, id);
                 res.send("Category delete success.");
@@ -74,7 +74,7 @@ export class CategoryController extends ControllerBase {
         this.router.get("/get/:id", UserAuthenticate, async (req, res) => {
             try {
                 const idUser: string = req.user!.id;
-                const id: string = req.params.id!;
+                const id: string = this.getQueryString(req.params.id!);
 
                 const category: Category = await this.repository.get(idUser, id);
                 res.json(category.toDto());
@@ -85,7 +85,7 @@ export class CategoryController extends ControllerBase {
         this.router.get("/search/:name", UserAuthenticate, async (req, res) => {
             try {
                 const idUser: string = req.user!.id;
-                const name: string = req.params.name!;
+                const name: string = this.getQueryString(req.params.name!);
 
                 const category: Category | undefined = await this.repository.search(idUser, name);
                 if (!category) return res.json({});

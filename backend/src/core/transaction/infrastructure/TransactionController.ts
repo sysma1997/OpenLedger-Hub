@@ -113,7 +113,7 @@ export class TransactionController extends ControllerBase {
         this.router.delete("/delete/:id", UserAuthenticate, async (req, res) => {
             try {
                 const idUser: string = req.user!.id;
-                const id: string = req.params.id!;
+                const id: string = this.getQueryString(req.params.id!);
 
                 await this.service.delete(idUser, id);
                 res.send("Transaction delete successfully.");
@@ -126,7 +126,7 @@ export class TransactionController extends ControllerBase {
         this.router.get("/get/:id", UserAuthenticate, async (req, res) => {
             try {
                 const idUser: string = req.user!.id;
-                const id: string = req.params.id!;
+                const id: string = this.getQueryString(req.params.id!);
 
                 const transaction = await this.repository.get(idUser, id);
 
