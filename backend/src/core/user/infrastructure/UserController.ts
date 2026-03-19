@@ -12,6 +12,8 @@ import { UserRepository } from "../domain/UserRepository";
 import { UserAuthenticate } from "./UserAuthenticate";
 import { FileStorage } from "../../shared/infrastructure/FileStorage";
 
+const FRONTEND_URL = (process.env.FRONTEND_URL) ? 
+    process.env.FRONTEND_URL : "http://localhost:8000";
 const transporter = nodemailer.createTransport({
     host: "mailpit", 
     port: 1025, 
@@ -81,11 +83,13 @@ export class UserController extends ControllerBase {
                 
                 return res.status(400).send(message);
             }
+            if (!User.IsValidEmail(req.body.email)) 
+                return res.status(400).send(`The '${req.body.email}' is not a valid email.`);
 
             const { name, email, password, id } = req.body;
-
             try {
-                const user = new User(name, email, password, dayjs.utc().toDate(), id ?? Uuid());
+                const cryptoPassword = User.ConvertPassword(password);
+                const user = new User(name, email, cryptoPassword, dayjs.utc().toDate(), id ?? Uuid());
                 const jwtParams: any = {
                     id: user.id,
                     name: user.name,
@@ -100,7 +104,7 @@ export class UserController extends ControllerBase {
                     to: email, 
                     subject: "Sysma Finances - Confirm your registeration", 
                     html: `Please confirm your user account by clicking on the following <a href="` + 
-                        `http://localhost:8000/validation?token=${token}` + 
+                        `${FRONTEND_URL}/validation?token=${token}` + 
                         `">link</a>.`,
                 });
 
@@ -122,26 +126,27 @@ export class UserController extends ControllerBase {
             }
         });
         this.router.post("/login", async (req, res) => {
-            const { email, password, code } = req.body;
-
-            if (!email || !password) {
+            if (!req.body.email || 
+                !req.body.password) {
                 let message = "";
                 let lineBreak = 0;
 
-                if (!email) {
+                if (!req.body.email) {
                     message += "Email is required.";
                     lineBreak++;
                 }
-                if (!password) message += ((lineBreak > 0) ? "\n" : "") + 
+                if (!req.body.password) message += ((lineBreak > 0) ? "\n" : "") + 
                     "Password is required.";
 
                 return res.status(400).send(message);
             }
-            if (!User.IsValidEmail(email)) 
-                return res.status(400).send(`The '${email}' is not a valid email.`);
-
+            if (!User.IsValidEmail(req.body.email)) 
+                return res.status(400).send(`The '${req.body.email}' is not a valid email.`);
+            
+            const { email, password, code } = req.body;
             try {
-                const user: User = await this.repository.login(email, password);
+                const cryptoPassword = User.ConvertPassword(password);
+                const user: User = await this.repository.login(email, cryptoPassword);
 
                 if (!code && user.config && user.config.twoStep && user.config.twoStep.active) {
                     if (user.config.twoStep.type === "Email") {
@@ -201,7 +206,7 @@ export class UserController extends ControllerBase {
                     to: email, 
                     subject: "Sysma Finances - Recover your user", 
                     html: `To recover your username, click on the following <a href="` + 
-                        `http://localhost:8000/recover?token=${token}` + 
+                        `${FRONTEND_URL}/recover?token=${token}` + 
                         `">link</a>.`,
                 });
                 res.send(`We have sent an email to ${email} to recover your user.`);
@@ -210,27 +215,28 @@ export class UserController extends ControllerBase {
             }
         });
         this.router.put("/recover/password", async (req, res) => {
-            const { token, password } = req.body;
-
-            if (!token || !password) {
+            if (!req.body.token || 
+                !req.body.password) {
                 let message = "";
                 let lineBreak = 0;
 
-                if (!token) {
+                if (!req.body.token) {
                     message += "Token is required.";
                     lineBreak++;
                 }
-                if (!password) message += ((lineBreak > 0) ? "\n" : "") + 
+                if (!req.body.password) message += ((lineBreak > 0) ? "\n" : "") + 
                     "Password is required.";
 
                 return res.status(400).send(message);
             }
-
+            
+            const { token, password } = req.body;
             try {
+                const cryptoPassword = User.ConvertPassword(password);
                 const payload = jwt.verify(token, process.env.JWT_SECRET!) as any;
                 const id: string = payload.id;
                 
-                await this.repository.recoverPassword(id, password);
+                await this.repository.recoverPassword(id, cryptoPassword);
                 res.status(201).send("User updating password success.");
             } catch (err: any) {
                 if (err instanceof Error) res.status(400).send(err.message);
@@ -314,23 +320,26 @@ export class UserController extends ControllerBase {
             }
         });
         this.router.put("/update/password", UserAuthenticate, async (req, res) => {
-            const { currentPassword, newPassword } = req.body;
-            if (!currentPassword || !newPassword) {
+            if (!req.body.currentPassword || 
+                !req.body.newPassword) {
                 let message = "";
                 let lineBreak = 0;
 
-                if (!currentPassword) {
+                if (!req.body.currentPassword) {
                     message += "The current password is required.";
                     lineBreak++;
                 }
-                if (!newPassword) message += ((lineBreak > 0) ? "\n" : "") + 
+                if (!req.body.newPassword) message += ((lineBreak > 0) ? "\n" : "") + 
                     "The new password is required.";
 
                 return res.status(400).send(message);
             }
-
+            
+            const { currentPassword, newPassword } = req.body;
             try {
-                await this.repository.updatePassword(req.user!.id, currentPassword, newPassword);
+                const cryptoCurrentPassword = User.ConvertPassword(currentPassword);
+                const cryptoNewPassword = User.ConvertPassword(newPassword);
+                await this.repository.updatePassword(req.user!.id, cryptoCurrentPassword, cryptoNewPassword);
 
                 res.status(201).send("Password update successful.");
             } catch (err: any) {

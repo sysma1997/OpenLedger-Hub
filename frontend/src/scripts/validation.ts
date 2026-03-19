@@ -1,7 +1,6 @@
 import dayjs from "dayjs";
 import dayjsUtc from "dayjs/plugin/utc.js";
 
-import { User } from "../core/user/domain/User";
 import type { UserRepository } from "../core/user/domain/UserRepository";
 import { UserApiRepository } from "../core/user/infrastructure/UserApiRepository";
 
@@ -18,7 +17,6 @@ if (!search.get("token")) window.location.href = "/register";
 
 try {
     const token: string = search.get("token")!;
-
     await repository.validate(token);
 
     pMessage.textContent = "The user was successfully validated.";

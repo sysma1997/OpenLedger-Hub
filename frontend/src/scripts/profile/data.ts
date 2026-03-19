@@ -11,6 +11,7 @@ dayjs.extend(dayjsUtc);
 
 const importCsv = document.getElementById("btnDImportCsv") as HTMLButtonElement;
 const exportCsv = document.getElementById("btnDExportCsv") as HTMLButtonElement;
+const showApiUrl = document.getElementById("btnDShowApiUrl") as HTMLButtonElement;
 const progressBar = document.getElementById("pDProgress") as HTMLProgressElement;
 
 const importParseCsv = async (text: string): Promise<any[]> => {
@@ -173,5 +174,17 @@ export const setup = (repository: TransactionRepository) => {
                 }
             }, 1000);
         });
+    };
+
+    showApiUrl.onclick = () => {
+        try {
+            const apiUrl = import.meta.env.PUBLIC_BACKEND_URL;
+            if (apiUrl) window.showAlert(`The current API url is: <a href="${apiUrl}" target="_blank">${apiUrl}</a>`, "API URL");
+        } catch (err: any) {
+            if (err instanceof Error) {
+                console.error(err);
+                window.showAlert(err.message);
+            }
+        }
     };
 };

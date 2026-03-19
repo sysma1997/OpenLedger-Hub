@@ -105,7 +105,6 @@ try {
 }
 
 const transactionShowUpdate = (_transaction: Transaction) => {
-    console.log(_transaction);
     transaction = _transaction;
     const account: Account | undefined = accounts.find(a => a.name === transaction!.account);
     if (account) {

@@ -84,4 +84,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     next(err);
 });
 
-app.listen(PORT, () => console.log(`Listen to port: ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Listen to port: ${PORT}`);
+    console.log(`CORS Allowed Origins: ${allowedOrigins.join(", ")}`);
+});

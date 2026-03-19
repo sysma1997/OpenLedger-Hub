@@ -18,6 +18,8 @@ CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
 
 FROM base AS frontend-build
 COPY frontend/. ./
+ARG FRONTEND_BACKEND_URL
+ENV PUBLIC_BACKEND_URL=$FRONTEND_BACKEND_URL
 RUN npm install
 RUN npm run build
 

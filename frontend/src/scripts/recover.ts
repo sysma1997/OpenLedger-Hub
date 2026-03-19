@@ -93,8 +93,7 @@ if (search.get("token")) {
         recover.classList.add("is-loading");
         recover.disabled = true;
         try {
-            const hashedPassword: string = await User.ConvertPassword(password.value);
-            const result = await repository.recoverPassword(token, hashedPassword);
+            const result = await repository.recoverPassword(token, password.value);
             
             window.showAlert(result, "Recover password", () => {
                 window.location.href = "/login";

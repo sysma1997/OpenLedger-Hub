@@ -49,9 +49,8 @@ login.onclick = async () => {
 
     login.classList.add("is-loading");
     login.disabled = true;
-    const hashedPassword = await User.ConvertPassword(password.value);
     try {
-        const login = await repository.login(email.value, hashedPassword);
+        const login = await repository.login(email.value, password.value);
         if (login.message) {
             modalTwoStep.classList.add("is-active");
             mtsMessage.innerText = login.message;
@@ -96,9 +95,8 @@ mtsAccept.onclick = async () => {
 
     mtsAccept.classList.add("is-loading");
     mtsAccept.disabled = true;
-    const hashedPassword = await User.ConvertPassword(password.value);
     try {
-        const login = await repository.login(email.value, hashedPassword, Number(mtsCode.value));
+        const login = await repository.login(email.value, password.value, Number(mtsCode.value));
 
         window.localStorage.setItem("token", login.token!);
         window.location.href = "/";

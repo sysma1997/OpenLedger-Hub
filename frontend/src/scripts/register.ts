@@ -74,7 +74,7 @@ register.onclick = async () => {
         register.disabled = true;
         const user: User = new User(name.value, email.value, 
             dayjs.utc().toDate(), undefined, 
-            await User.ConvertPassword(password.value));
+            password.value);
 
         await repository.register(user);
         window.showAlert("We have sent you an email to confirm your registration.", "Register", () => {

@@ -39,10 +39,6 @@ export class User implements Base {
         }
         if (!User.IsValidEmail(email)) 
             throw new Error(`The '${email}' is not a valid email.`);
-        if (password) {
-            if (password.length != 64 && password.length != 60) 
-                throw new Error("The password is not valid, please check that it is in SHA256");
-        }
 
         this.name = name;
         this.email = email;
@@ -62,17 +58,6 @@ export class User implements Base {
         return new User(dto.name, dto.email, createAt, 
             dto.id, dto.password, lastUpdate, 
             dto.profile, dto.config);
-    }
-    static ConvertPassword(value: string): Promise<string> {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(value);
-
-        return crypto.subtle.digest("SHA-256", data).then((hashBuffer) => {
-            // Convertir ArrayBuffer a hex string
-            return Array.from(new Uint8Array(hashBuffer))
-            .map(b => b.toString(16).padStart(2, "0"))
-            .join("");
-        });
     }
     static IsValidEmail(email: string): boolean {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

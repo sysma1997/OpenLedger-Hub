@@ -82,10 +82,8 @@ export const setup = (user: User, repository: UserRepository) => {
 
         mupAccept.classList.add("is-loading");
         mupAccept.disabled = true;
-        const currentPassword = await User.ConvertPassword(mupCurrentPassword.value);
-        const newPassword = await User.ConvertPassword(mupNewPassword.value);
         try {
-            const result = await repository.updatePassword(currentPassword, newPassword);
+            const result = await repository.updatePassword(mupCurrentPassword.value, mupNewPassword.value);
 
             window.showAlert(result, "Update password", () => {
                 mupAccept.classList.remove("is-loading");
