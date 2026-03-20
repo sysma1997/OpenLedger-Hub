@@ -83,7 +83,7 @@ register.onclick = async () => {
     } catch (err: any) {
         if (err instanceof Error) {
             console.error(err);
-            window.showAlert(`Error: ${err.message}`);
+            window.showAlert(err.message);
         }
         
         register.classList.remove("is-loading");

@@ -17,19 +17,6 @@ services:
     networks:
       - openledger_hub-network
 
-  sqlite-web:
-    image: ghcr.io/coleifer/sqlite-web:latest
-    restart: always
-    ports:
-      - "8001:8080"
-    volumes:
-      - sqlite_data:/data
-    environment:
-      - SQLITE_DATABASE=sqlite.db
-    command: sqlite_web -H 0.0.0.0 -p 8080 /data/sqlite.db
-    networks:
-      - openledger_hub-network
-
   backend:
     build:
       context: ./
@@ -37,11 +24,13 @@ services:
     restart: always
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
+      - "5555:5555"
     environment:
       PORT: ${BACKEND_PORT}
       JWT_SECRET: ${BACKEND_JWT_SECRET}
       DATABASE_URL: file:/usr/local/app/data/sqlite.db
       FRONTEND_URL: ${BACKEND_FRONTEND_URL}
+      RESEND_API_KEY: ${BACKEND_RESEND_API_KEY}
     depends_on:
       - mailpit
     volumes:

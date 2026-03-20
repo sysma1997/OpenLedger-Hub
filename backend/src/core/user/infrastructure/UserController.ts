@@ -1,9 +1,9 @@
 import { v4 as Uuid } from "uuid";
 import path from "path";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
 import dayjs from "dayjs";
 import "dayjs/plugin/utc";
+import { Resend } from "resend";
 
 import { ControllerBase } from "../../shared/infrastructure/ControllerBase";
 import { User } from "../domain/User";
@@ -11,15 +11,13 @@ import type { UserConfig } from "../domain/User";
 import { UserRepository } from "../domain/UserRepository";
 import { UserAuthenticate } from "./UserAuthenticate";
 import { FileStorage } from "../../shared/infrastructure/FileStorage";
+import { EmailTemplates } from "../../shared/domain/EmailTemplate";
 
 const FRONTEND_URL = (process.env.FRONTEND_URL) ? 
     process.env.FRONTEND_URL : "http://localhost:8000";
-const transporter = nodemailer.createTransport({
-    host: "mailpit", 
-    port: 1025, 
-    secure: false,
-    tls: { rejectUnauthorized: false }
-});
+const RESEND_API_KEY = (process.env.RESEND_API_KEY) ? 
+    process.env.RESEND_API_KEY : "no_api_key";
+const resend = new Resend(RESEND_API_KEY);
 
 export class UserController extends ControllerBase {
     private readonly repository: UserRepository;
@@ -86,8 +84,12 @@ export class UserController extends ControllerBase {
             if (!User.IsValidEmail(req.body.email)) 
                 return res.status(400).send(`The '${req.body.email}' is not a valid email.`);
 
+            
             const { name, email, password, id } = req.body;
             try {
+                const userExists = await this.repository.getWithEmail(email);
+                if (userExists) return res.status(400).send("The user already exists with this email address.");
+
                 const cryptoPassword = User.ConvertPassword(password);
                 const user = new User(name, email, cryptoPassword, dayjs.utc().toDate(), id ?? Uuid());
                 const jwtParams: any = {
@@ -99,14 +101,14 @@ export class UserController extends ControllerBase {
                 const token = jwt.sign(jwtParams, process.env.JWT_SECRET!, {
                     expiresIn: "1d"
                 });
-                await transporter.sendMail({
-                    from: "no-reply@sysmafinances.com", 
-                    to: email, 
-                    subject: "Sysma Finances - Confirm your registeration", 
-                    html: `Please confirm your user account by clicking on the following <a href="` + 
-                        `${FRONTEND_URL}/validation?token=${token}` + 
-                        `">link</a>.`,
+                const { data, error } = await resend.emails.send({
+                    //from: "no-reply@openledgerhub.com", 
+                    from: "no-reply@resend.dev", 
+                    to: [email], 
+                    subject: "OpenLedger Hub - Confirm your registration", 
+                    html: EmailTemplates.VerificationEmail(name, `${FRONTEND_URL}/validation?token=${token}`)
                 });
+                if (error) return res.status(400).json({ error });
 
                 res.send(`We have sent an email to ${email} to confirm your registration.`);
             } catch (err: any) {
@@ -120,6 +122,15 @@ export class UserController extends ControllerBase {
                 const user = new User(payload.name, payload.email, payload.password, dayjs.utc().toDate());
                 
                 await this.repository.register(user);
+                const { data, error } = await resend.emails.send({
+                    //from: "no-reply@openledgerhub.com", 
+                    from: "no-reply@resend.dev", 
+                    to: [user.email], 
+                    subject: "OpenLedger Hub - Validate token", 
+                    html: EmailTemplates.WelcomeEmail(user.name)
+                });
+                if (error) return res.status(400).json({ error });
+
                 res.status(201).send("User register success.");
             } catch (err: any) {
                 if (err instanceof Error) res.status(400).send(err.message);
@@ -152,14 +163,15 @@ export class UserController extends ControllerBase {
                     if (user.config.twoStep.type === "Email") {
                         const codeV = this.generateCodeVerification(user.id!);
     
-                        await transporter.sendMail({
-                            from: "no-reply@sysmafinances.com", 
-                            to: email, 
-                            subject: "Sysma Finances - Two step", 
-                            html: "Ingress the next code for login: </br>" + 
-                                `<h2><b>${codeV}</b></h2>` + "</br>" + 
-                                "The code has 10 minutes to expired.",
+                        const { data, error } = await resend.emails.send({
+                            //from: "no-reply@openledgerhub.com", 
+                            from: "no-reply@resend.dev", 
+                            to: [user.email], 
+                            subject: "OpenLedger Hub - Two factor step", 
+                            html: EmailTemplates.TwoFactorCodeEmail(user.name, codeV.toString())
                         });
+                        if (error) return res.status(400).json({ error });
+                        
                         return res.json({ 
                             token: undefined, 
                             message: `We have sent an email to ${email} to update to your new email address.` 
@@ -201,14 +213,15 @@ export class UserController extends ControllerBase {
                         expiresIn: "1d"
                     });
                 
-                await transporter.sendMail({
-                    from: "no-reply@sysmafinances.com", 
-                    to: email, 
-                    subject: "Sysma Finances - Recover your user", 
-                    html: `To recover your username, click on the following <a href="` + 
-                        `${FRONTEND_URL}/recover?token=${token}` + 
-                        `">link</a>.`,
+                const { data, error } = await resend.emails.send({
+                    //from: "no-reply@openledgerhub.com", 
+                    from: "no-reply@resend.dev", 
+                    to: [user.email], 
+                    subject: "OpenLedger Hub - Recover your user", 
+                    html: EmailTemplates.PasswordRecoveryEmail(user.name, `${FRONTEND_URL}/recover?token=${token}`)
                 });
+                if (error) return res.status(400).json({ error });
+
                 res.send(`We have sent an email to ${email} to recover your user.`);
             } catch (err: any) {
                 if (err instanceof Error) res.status(400).send(err.message);
@@ -244,24 +257,25 @@ export class UserController extends ControllerBase {
         });
 
         this.router.get("/request/update/email/:email", UserAuthenticate, async (req, res) => {
-            const { pEmail } = req.params;
-            if (!pEmail) 
+            if (!req.params.email) 
                 return res.status(400).send("The email is required.");
-            const email: string = this.getQueryString(pEmail);
+
+            const { email } = req.params;
             if (!User.IsValidEmail(email)) 
                 return res.status(400).send(`The email '${email}' is not valid.`);
 
             try {
                 const code = this.generateCodeVerification(req.user!.id);
-
-                await transporter.sendMail({
-                    from: "no-reply@sysmafinances.com", 
-                    to: email, 
-                    subject: "Sysma Finances - Updating email", 
-                    html: "Ingress the next code for update your email: </br>" + 
-                        `<h2><b>${code}</b></h2>` + "</br>" + 
-                        "The code has 10 minutes to expired.",
+                
+                const { data, error } = await resend.emails.send({
+                    //from: "no-reply@openledgerhub.com", 
+                    from: "no-reply@resend.dev", 
+                    to: [email], 
+                    subject: "OpenLedger Hub - Updating email", 
+                    html: EmailTemplates.TwoFactorCodeEmail(email, code.toString())
                 });
+                if (error) return res.status(400).json({ error });
+
                 res.send(`We have sent an email to ${email} to update to your new email address.`);
             } catch (err: any) {
                 if (err instanceof Error) res.status(400).send(err.message);
